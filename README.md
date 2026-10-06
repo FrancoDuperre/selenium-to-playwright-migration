@@ -27,7 +27,7 @@ Raw data: [`results/benchmark.csv`](results/benchmark.csv) (one row per run) and
 ### What the numbers say
 
 - **About 10x faster, for two separate reasons.** Disabling the legacy sleeps alone takes the Selenium suite from 70.4 s to 36.8 s, so roughly half of the original time was fixed waiting. The remaining gap (36.8 s vs 6.8 s) was not measured separately; the main design difference left is that the legacy suite starts a new Chrome for every test, while pytest-playwright reuses one browser and opens a lightweight context per test.
-- **No stability gain here.** Both suites passed 10 out of 10 runs, and so did the legacy suite with its sleeps disabled. SauceDemo is fast and predictable, so it does not expose the flakiness that sleeps usually cause on slower apps. This benchmark does not show Playwright being more stable.
+- **Stability: equal locally, different in CI.** Locally, both suites passed 10 out of 10 runs, and so did the legacy suite with its sleeps disabled. On the GitHub Actions runner the picture changed: in the [3-run CI benchmark](https://github.com/FrancoDuperre/selenium-to-playwright-migration/actions/runs/37521441897) the legacy suite with sleeps disabled failed in 2 of 3 runs (one test each time), while the original legacy suite and the Playwright suite passed all 3. In other words, the legacy sleeps were hiding timing problems that only show up on a faster machine, and simply deleting them is not a safe fix in Selenium. That is three CI runs, not a large sample, and the benchmark records how many tests failed but not which one, so the exact flaky test is not identified yet.
 - **Only slightly less code.** 172 vs 186 lines (about 8% fewer). Most of the gain is in readability: the explicit-wait helper layer disappears and assertions retry by themselves.
 - **Same setup effort.** Both need `git clone`, a virtual environment, `pip install -r requirements.txt` and a `.env` file. Selenium Manager downloads the driver automatically, and the Playwright suite uses the installed Chrome (`--browser-channel=chrome`), so neither needs an extra install step. With Playwright's bundled browsers you would add `playwright install chromium`.
 
@@ -90,7 +90,7 @@ See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for the step-by-step mapping from S
 
 ## CI
 
-Every push and pull request runs both suites and a short 3-run benchmark on GitHub Actions, and uploads the results as an artifact. CI numbers come from a shared Linux runner and will differ from the local results above.
+Every push and pull request runs both suites and a short 3-run benchmark on GitHub Actions, and uploads the results as an artifact. CI numbers come from a shared Linux runner and differ from the local results above. On the first CI run, for example, the medians were 44.5 s (Selenium), 12.3 s (Selenium without sleeps) and 8.2 s (Playwright).
 
 ## About
 
