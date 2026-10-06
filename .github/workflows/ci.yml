@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SAUCE_USERNAME: ${{ secrets.SAUCE_USERNAME }}
+      SAUCE_LOCKED_OUT_USERNAME: ${{ secrets.SAUCE_LOCKED_OUT_USERNAME }}
+      SAUCE_PASSWORD: ${{ secrets.SAUCE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          sudo apt-get install -y cloc
+
+      # Both suites use the Google Chrome preinstalled on the runner.
+      - name: Run legacy Selenium suite
+        run: pytest legacy_selenium
+
+      - name: Run migrated Playwright suite
+        run: pytest migrated_playwright
+
+      # A short benchmark as a sanity check; the committed results come from 20 local runs.
+      - name: Run benchmark
+        run: python benchmark/run_benchmark.py --runs 3
+
+      - name: Upload benchmark results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: results/
+          retention-days: 14
+
+      - name: Upload failure artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-artifacts
+          path: |
+            screenshots/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore
