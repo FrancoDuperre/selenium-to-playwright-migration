@@ -1,0 +1,3 @@
+suite,lines_of_code,fixed_sleeps,explicit_waits
+selenium,186,7,3
+playwright,172,0,1
